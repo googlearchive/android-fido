@@ -17,16 +17,13 @@
 package com.fido.example.fidoapiexample.utils;
 
 import android.content.DialogInterface;
-import android.graphics.Color;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.fido.example.fidoapiexample.R;
 import com.fido.example.fidoapiexample.U2FDemoActivity;
@@ -71,9 +68,12 @@ public class SecurityTokenAdapter extends RecyclerView.Adapter<SecurityTokenAdap
     @Override
     public void onBindViewHolder(final ViewHolder viewHolder, final int item) {
         final Map<String, String> token = tokens.get(item);
-        StringBuffer tokenValue = new StringBuffer();
+        StringBuilder tokenValue = new StringBuilder();
         for (Map.Entry<String, String> entry : token.entrySet()) {
-            tokenValue.append(entry.getKey() + ": " + entry.getValue() + "\n");
+            tokenValue.append(entry.getKey())
+                    .append(": ")
+                    .append(entry.getValue())
+                    .append("\n");
         }
         viewHolder.content.setText(tokenValue.toString());
         /*viewHolder.content.setOnClickListener(new View.OnClickListener() {
@@ -121,9 +121,9 @@ public class SecurityTokenAdapter extends RecyclerView.Adapter<SecurityTokenAdap
 
         public ViewHolder(View itemView) {
             super(itemView);
-            content = (TextView) itemView.findViewById(R.id.tokenValue);
-            image = (ImageView) itemView.findViewById(R.id.tokenImage);
-            removeButton = (ImageView) itemView.findViewById(R.id.removeToken);
+            content = itemView.findViewById(R.id.tokenValue);
+            image = itemView.findViewById(R.id.tokenImage);
+            removeButton = itemView.findViewById(R.id.removeToken);
         }
 
     }

@@ -52,7 +52,6 @@ public class GAEService {
     private static final String TAG = "GAEService";
     private static final String KEY_KEY_HANDLE = "keyHandle";
     private static final String KEY_SESSION_ID = "sessionId";
-    private static final String KEY_RESPONSE_DATA = "responseData";
     private static final String KEY_PUB_KEY = "public_key";
 
     private static final String KEY_REQUEST_APP_ID = "appId";
@@ -77,7 +76,7 @@ public class GAEService {
 
     private GAEService(Context context) {
         mContext = context;
-        sessionIds = new HashMap<String, String>();
+        sessionIds = new HashMap<>();
         initGAEService();
     }
 
@@ -99,12 +98,8 @@ public class GAEService {
             JSONObject registerRequestJson = new JSONObject(registerRequestContent.get(0));
             signSessionId = registerRequestJson.getString(KEY_SESSION_ID);
 
-            /* if (!registerRequestJson.has(KEY_REQUEST_TIMEOUT_SECONDS)) {
-                registerRequestJson.put(KEY_REQUEST_TIMEOUT_SECONDS,
-                        Constants.DEFAULT_TIMEOUT_SECONDS);
-            } */
             Integer requestId = registerRequestJson.has(KEY_REQUEST_ID) ?
-                    registerRequestJson.getInt(KEY_REQUEST_ID): null;
+                    registerRequestJson.getInt(KEY_REQUEST_ID) : null;
 
             Double timeoutSeconds = registerRequestJson.has(KEY_REQUEST_TIMEOUT_SECONDS) ?
                     registerRequestJson.getDouble(KEY_REQUEST_TIMEOUT_SECONDS)
@@ -190,7 +185,7 @@ public class GAEService {
             JSONObject signRequestJson = new JSONObject(signRequestContent.get(0));
 
             Integer requestId = signRequestJson.has(KEY_REQUEST_ID) ?
-                    signRequestJson.getInt(KEY_REQUEST_ID): null;
+                    signRequestJson.getInt(KEY_REQUEST_ID) : null;
 
             // from u2fdemo.js, if default timeout not available, assign 30
             Double timeoutSeconds = signRequestJson.has(KEY_REQUEST_TIMEOUT_SECONDS) ?

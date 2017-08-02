@@ -31,8 +31,9 @@ import java.util.List;
 
 public class CustomItemAnimator extends SimpleItemAnimator {
     private static final String TAG = "CustomItemAnimator";
-    List<RecyclerView.ViewHolder> mPendingAdd = new ArrayList<RecyclerView.ViewHolder>();
-    List<RecyclerView.ViewHolder> mPendingRemove = new ArrayList<RecyclerView.ViewHolder>();
+
+    private List<RecyclerView.ViewHolder> mPendingAdd = new ArrayList<RecyclerView.ViewHolder>();
+    private List<RecyclerView.ViewHolder> mPendingRemove = new ArrayList<RecyclerView.ViewHolder>();
 
     @Override
     public void runPendingAnimations() {

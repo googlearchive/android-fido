@@ -26,6 +26,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
 import android.support.design.widget.NavigationView;
 import android.support.multidex.MultiDex;
 import android.support.v4.app.ActivityCompat;
@@ -46,7 +47,6 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.fido.example.fidoapiexample.R;
 import com.fido.example.fidoapiexample.utils.SecurityTokenAdapter;
 import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -60,14 +60,14 @@ import com.google.android.gms.common.api.Status;
 import com.google.android.gms.fido.Fido;
 import com.google.android.gms.fido.u2f.U2fApiClient;
 import com.google.android.gms.fido.u2f.U2fPendingIntent;
+import com.google.android.gms.fido.u2f.api.common.ErrorResponseData;
 import com.google.android.gms.fido.u2f.api.common.RegisterRequestParams;
+import com.google.android.gms.fido.u2f.api.common.RegisterResponseData;
 import com.google.android.gms.fido.u2f.api.common.ResponseData;
 import com.google.android.gms.fido.u2f.api.common.SignRequestParams;
+import com.google.android.gms.fido.u2f.api.common.SignResponseData;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
-import com.google.android.gms.fido.u2f.api.common.ErrorResponseData;
-import com.google.android.gms.fido.u2f.api.common.RegisterResponseData;
-import com.google.android.gms.fido.u2f.api.common.SignResponseData;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -124,11 +124,11 @@ public class U2FDemoActivity extends AppCompatActivity
         // END Google sign in API client
 
         // START prepare main layout
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
+        mProgressBar = findViewById(R.id.progressBar);
 
-        mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.swipe_container);
+        mSwipeRefreshLayout = findViewById(R.id.swipe_container);
         mSwipeRefreshLayout.setColorSchemeColors(getResources().getColor(R.color.colorAccent));
         mSwipeRefreshLayout.setRefreshing(true);
         mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
@@ -138,14 +138,14 @@ public class U2FDemoActivity extends AppCompatActivity
             }
         });
 
-        mRecyclerView = (RecyclerView) findViewById(R.id.list);
+        mRecyclerView = findViewById(R.id.list);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         mAdapter = new SecurityTokenAdapter(new ArrayList<Map<String, String>>(),
                 R.layout.row_token, U2FDemoActivity.this);
         // END prepare main layout
 
         // START prepare drawer layout
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        DrawerLayout drawer = findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this,
                 drawer,
@@ -154,17 +154,17 @@ public class U2FDemoActivity extends AppCompatActivity
                 R.string.navigation_drawer_close);
         drawer.setDrawerListener(toggle);
         toggle.syncState();
-        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+        NavigationView navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
         navigationView.setItemIconTintList(null);
         View header = navigationView.getHeaderView(0);
-        mUserEmailTextView = (TextView) header.findViewById(R.id.userEmail);
-        mDisplayNameTextView = (TextView) header.findViewById(R.id.displayName);
+        mUserEmailTextView = header.findViewById(R.id.userEmail);
+        mDisplayNameTextView = header.findViewById(R.id.displayName);
         Menu menu = navigationView.getMenu();
         mU2fOperationMenuItem = menu.findItem(R.id.nav_u2fOperations);
         mSignInMenuItem = menu.findItem(R.id.nav_signin);
         mSignOutMenuItem = menu.findItem(R.id.nav_signout);
-        mSignInButton = (SignInButton) findViewById(R.id.sign_in_button);
+        mSignInButton = findViewById(R.id.sign_in_button);
         mSignInButton.setSize(SignInButton.SIZE_WIDE);
         mSignInButton.setScopes(gso.getScopeArray());
         mSignInButton.setOnClickListener(this);
@@ -456,7 +456,7 @@ public class U2FDemoActivity extends AppCompatActivity
         Auth.GoogleSignInApi.signOut(mGoogleApiClient).setResultCallback(
                 new ResultCallback<Status>() {
                     @Override
-                    public void onResult(Status status) {
+                    public void onResult(@NonNull Status status) {
                         clearAccountInfoFromPref();
                         updateUI();
                         gaeService = null;
@@ -475,14 +475,14 @@ public class U2FDemoActivity extends AppCompatActivity
             return;
         }
 
-        switch(resultCode) {
+        switch (resultCode) {
             case RESULT_OK:
                 ResponseData responseData = data.getParcelableExtra(Fido.KEY_RESPONSE_EXTRA);
 
                 if (responseData instanceof ErrorResponseData) {
                     Toast.makeText(
                             U2FDemoActivity.this,
-                            "Operation failed\n"+ responseData,
+                            "Operation failed\n" + responseData,
                             Toast.LENGTH_SHORT)
                             .show();
                     break;
@@ -521,45 +521,6 @@ public class U2FDemoActivity extends AppCompatActivity
                         .show();
                 break;
         }
-
-        /*
-        String result = "resultCode: " + resultCode;
-        String u2fResultData = null;
-        if (data.hasExtra(KEY_RESULT_DATA)) {
-            u2fResultData = data.getStringExtra(KEY_RESULT_DATA);
-            result += "; "
-                    + KEY_RESULT_DATA + ":  " + u2fResultData;
-            Log.d(TAG, result);
-        }
-        switch (requestCode) {
-            case RC_SIGN_IN:
-                GoogleSignInResult siginInResult =
-                        Auth.GoogleSignInApi.getSignInResultFromIntent(data);
-                handleSignInResult(siginInResult);
-                break;
-            case REQUEST_CODE_REGISTER:
-                if (u2fResultData == null) {
-                    Toast.makeText(
-                            U2FDemoActivity.this,
-                            "Registration is cancelled",
-                            Toast.LENGTH_SHORT)
-                            .show();
-                    break;
-                }
-                updateRegisterResponseToServer(u2fResultData);
-                break;
-            case REQUEST_CODE_SIGN:
-                if (u2fResultData == null) {
-                    Toast.makeText(
-                            U2FDemoActivity.this,
-                            "Authentication is cancelled",
-                            Toast.LENGTH_SHORT)
-                            .show();
-                    break;
-                }
-                updateSignResponseToServer(u2fResultData);
-                break;
-        }*/
     }
 
     private void handleSignInResult(GoogleSignInResult result) {
@@ -580,7 +541,7 @@ public class U2FDemoActivity extends AppCompatActivity
 
     @Override
     public void onRequestPermissionsResult(
-            int requestCode, String permissions[], int[] grantResults) {
+            int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
         switch (requestCode) {
             case GET_ACCOUNTS_PERMISSIONS_REQUEST_REGISTER:
                 Log.d(TAG, "onRequestPermissionsResult");
@@ -609,7 +570,7 @@ public class U2FDemoActivity extends AppCompatActivity
     }
 
     @Override
-    public boolean onNavigationItemSelected(MenuItem item) {
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         // Handle navigation view item clicks here.
         switch (item.getItemId()) {
             case R.id.nav_signin:
@@ -641,7 +602,7 @@ public class U2FDemoActivity extends AppCompatActivity
     }
 
     @Override
-    public void onConnectionFailed(ConnectionResult connectionResult) {
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
         Log.d(TAG, "onConnectionFailed:" + connectionResult);
     }
 
@@ -684,7 +645,7 @@ public class U2FDemoActivity extends AppCompatActivity
         Log.d(TAG, "saveAccountInfoToPref email: " + email);
         editor.putString(Constants.PREF_DISPLAY_NAME, displayName);
         Log.d(TAG, "saveAccountInfoToPref displayName: " + displayName);
-        editor.commit();
+        editor.apply();
     }
 
     private void clearAccountInfoFromPref() {
@@ -693,7 +654,7 @@ public class U2FDemoActivity extends AppCompatActivity
         editor.remove(Constants.PREF_ACCOUNT_NAME);
         editor.remove(Constants.PREF_DISPLAY_NAME);
         Log.d(TAG, "clearAccountInfoFromPref");
-        editor.commit();
+        editor.apply();
     }
 
     @Override
