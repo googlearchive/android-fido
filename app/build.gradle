@@ -1,0 +1,51 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 26
+    buildToolsVersion "25.0.3"
+
+    defaultConfig {
+        applicationId "com.fido.example.fidoapiexample"
+        minSdkVersion 15
+        targetSdkVersion 25
+        versionCode 1
+        versionName "1.0"
+        multiDexEnabled true
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+configurations {
+    compile.exclude group: "org.apache.httpcomponents", module: "httpclient"
+}
+
+dependencies {
+    // JAR dependencies
+    compile files('libs/u2fRequestHandler-v1-1.22.0-SNAPSHOT.jar')
+
+    // Android Support
+    compile 'com.android.support:appcompat-v7:26.0.0'
+    compile 'com.android.support:cardview-v7:26.0.0'
+    compile 'com.android.support:customtabs:26.0.0'
+    compile 'com.android.support:design:26.0.0'
+    compile 'com.android.support:recyclerview-v7:26.0.0'
+    compile 'com.android.support:multidex:1.0.2'
+
+    // Play services
+    compile 'com.google.android.gms:play-services-auth:11.2.0'
+    compile 'com.google.android.gms:play-services-fido:11.2.0'
+    compile 'com.google.android.gms:play-services-ads:11.2.0'
+
+    // Other
+    compile 'com.google.http-client:google-http-client:1.22.0'
+    compile 'com.google.api-client:google-api-client:1.22.0'
+    compile 'com.google.http-client:google-http-client-android:1.22.0'
+    compile 'com.google.api-client:google-api-client-android:1.22.0'
+    compile 'net.sf.ingenias:common-codec:1.3'
+}
