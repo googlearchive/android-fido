@@ -35,7 +35,7 @@ dependencies {
     compile 'com.android.support:customtabs:26.0.0'
     compile 'com.android.support:design:26.0.0'
     compile 'com.android.support:recyclerview-v7:26.0.0'
-    compile 'com.android.support:multidex:1.0.2'
+    compile 'com.android.support:multidex:1.0.1'
 
     // Play services
     compile 'com.google.android.gms:play-services-auth:11.2.0'
