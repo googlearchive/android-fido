@@ -101,8 +101,10 @@ Pre-requisites
 Getting Started
 ---------------
 
-This sample uses the Gradle build system. To build this project, use the
-"gradlew build" command or use "Import Project" in Android Studio.
+To install the sample app on your Android device or emulator,
+run `./gradlew :app:installRelease`. This will install the release
+configuration, which uses the bundled keystore file to make the app
+work with the demo server.
 
 Support
 -------

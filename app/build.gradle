@@ -13,10 +13,28 @@ android {
         multiDexEnabled true
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
+
+    signingConfigs {
+        // Use the provided 'fido-example.keystore' for signing so that the example
+        // server accepts the package signature
+        release {
+            storeFile file('fido-example.keystore')
+            storePassword 'fidou2f'
+            keyAlias 'fidoexamplekey'
+            keyPassword 'fidou2f'
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig signingConfigs.release
+        }
+
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+
+            signingConfig signingConfigs.release
         }
     }
 }
