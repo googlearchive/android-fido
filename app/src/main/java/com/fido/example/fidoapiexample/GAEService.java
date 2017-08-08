@@ -199,7 +199,7 @@ public class GAEService {
                             Base64.URL_SAFE | Base64.NO_PADDING | Base64.NO_WRAP) : null;
 
             // save sessionId for each KeyHandle, to be retrieved after authN
-            // pass back to server in UpdateSignResponseToServerAsyncTask
+            // pass back to server
             JSONArray registeredKeys = signRequestJson.getJSONArray(KEY_REQUEST_REGISTERED_KEYS);
             for (int i = 0; i < registeredKeys.length(); i++) {
                 JSONObject registeredKey = registeredKeys.getJSONObject(i);

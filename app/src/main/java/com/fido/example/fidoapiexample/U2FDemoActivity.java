@@ -23,7 +23,6 @@ import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
@@ -66,12 +65,18 @@ import com.google.android.gms.fido.u2f.api.common.RegisterResponseData;
 import com.google.android.gms.fido.u2f.api.common.ResponseData;
 import com.google.android.gms.fido.u2f.api.common.SignRequestParams;
 import com.google.android.gms.fido.u2f.api.common.SignResponseData;
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
+import com.google.android.gms.tasks.Tasks;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class U2FDemoActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener,
@@ -86,6 +91,14 @@ public class U2FDemoActivity extends AppCompatActivity
     private static final int GET_ACCOUNTS_PERMISSIONS_REQUEST_REGISTER = 0x11;
     private static final int GET_ACCOUNTS_PERMISSIONS_REQUEST_SIGN = 0x13;
     private static final int GET_ACCOUNTS_PERMISSIONS_ALL_TOKENS = 0x15;
+
+    // Create a new ThreadPoolExecutor with 2 threads for each processor on the
+    // device and a 60 second keep-alive time.
+    private static final int NUM_CORES = Runtime.getRuntime().availableProcessors();
+    private static final ThreadPoolExecutor THREAD_POOL_EXECUTOR =
+        new ThreadPoolExecutor(NUM_CORES * 2, NUM_CORES * 2, 60L, TimeUnit.SECONDS,
+            new LinkedBlockingDeque<Runnable>(
+            ));
 
     private ProgressBar mProgressBar;
     private SwipeRefreshLayout mSwipeRefreshLayout;
@@ -214,7 +227,19 @@ public class U2FDemoActivity extends AppCompatActivity
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.GET_ACCOUNTS)
                 == PackageManager.PERMISSION_GRANTED) {
             Log.i(TAG, "getRegisterRequest permission is granted");
-            new GetRegisterRequestAsyncTask().execute(false);
+            Task<RegisterRequestParams> getRegisterRequestTask = asyncGetRegisterRequest(false);
+            getRegisterRequestTask.addOnCompleteListener(
+                new OnCompleteListener<RegisterRequestParams>() {
+                    @Override
+                    public void onComplete(@NonNull Task<RegisterRequestParams> task) {
+                        RegisterRequestParams registerRequest = task.getResult();
+                        if (registerRequest == null) {
+                            Log.d(TAG, "registerRequest is null");
+                            return;
+                        }
+                        sendRegisterRequestToClient(registerRequest);
+                    }
+                });
         } else {
             Log.i(TAG, "getRegisterRequest permission is requested");
             ActivityCompat.requestPermissions(
@@ -249,14 +274,43 @@ public class U2FDemoActivity extends AppCompatActivity
         /* assume this operation can only happen within short time after getRegisterRequest,
            which has already checked permission
          */
-        new UpdateRegisterResponseToServerAsyncTask().execute(registerResponseData);
+        Task<String> updateRegisterResponseToServerTask =
+            asyncUpdateRegisterResponseToServer(registerResponseData);
+        updateRegisterResponseToServerTask.addOnCompleteListener(new OnCompleteListener<String>() {
+            @Override
+            public void onComplete(@NonNull Task<String> task) {
+                String securityKeyToken = task.getResult();
+                if (securityKeyToken == null) {
+                    Toast.makeText(
+                        U2FDemoActivity.this,
+                        "security key registration failed",
+                        Toast.LENGTH_SHORT)
+                        .show();
+                    return;
+                }
+                updateAndDisplayRegisteredKeys();
+                Log.i(TAG, "Update register response to server with securityKeyToken: "
+                    + securityKeyToken);
+            }
+        });
     }
 
     private void getSignRequest() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.GET_ACCOUNTS)
                 == PackageManager.PERMISSION_GRANTED) {
             Log.i(TAG, "getSignRequest permission is granted");
-            new GetSignRequestAsyncTask().execute();
+            Task<SignRequestParams> getSignRequestTask = asyncGetSignRequest();
+            getSignRequestTask.addOnCompleteListener(new OnCompleteListener<SignRequestParams>() {
+                @Override
+                public void onComplete(@NonNull Task<SignRequestParams> task) {
+                    SignRequestParams signRequest = task.getResult();
+                    if (signRequest == null) {
+                        Log.i(TAG, "signRequest is null");
+                        return;
+                    }
+                    sendSignRequestToClient(signRequest);
+                }
+            });
         } else {
             Log.i(TAG, "getSignRequest permission is requested");
             ActivityCompat.requestPermissions(
@@ -290,7 +344,24 @@ public class U2FDemoActivity extends AppCompatActivity
         /* assume this operation can only happen within short time after getSignRequest,
            which has already checked permission
          */
-        new UpdateSignResponseToServerAsyncTask().execute(signResponseData);
+        Task<String> updateSignResponseToServerTask =
+            asyncUpdateSignResponseToServer(signResponseData);
+        updateSignResponseToServerTask.addOnCompleteListener(new OnCompleteListener<String>() {
+            @Override
+            public void onComplete(@NonNull Task<String> task) {
+                String pubKey = task.getResult();
+                if (pubKey == null) {
+                    Toast.makeText(
+                        U2FDemoActivity.this,
+                        "this security key has not been registered!",
+                        Toast.LENGTH_SHORT).
+                        show();
+                    return;
+                }
+                Log.i(TAG, "authenticated key's pub_key is " + pubKey);
+                highlightAuthenticatedToken(pubKey);
+            }
+        });
     }
 
     private void updateAndDisplayRegisteredKeys() {
@@ -298,7 +369,18 @@ public class U2FDemoActivity extends AppCompatActivity
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.GET_ACCOUNTS)
                 == PackageManager.PERMISSION_GRANTED) {
             Log.i(TAG, "updateAndDisplayRegisteredKeys permission is granted");
-            new RefreshSecurityKeysAsyncTask().execute();
+            Task<List<Map<String, String>>> refreshSecurityKeyTask = asyncRefreshSecurityKey();
+            refreshSecurityKeyTask.addOnCompleteListener(
+                new OnCompleteListener<List<Map<String, String>>>() {
+                    @Override
+                    public void onComplete(@NonNull Task<List<Map<String, String>>> task) {
+                        List<Map<String, String>> tokens = task.getResult();
+                        securityTokens = tokens;
+                        mAdapter.clearSecurityTokens();
+                        mAdapter.addSecurityToken(securityTokens);
+                        displayRegisteredKeys();
+                    }
+                });
         } else {
             Log.i(TAG, "updateAndDisplayRegisteredKeys permission is requested");
             ActivityCompat.requestPermissions(
@@ -312,92 +394,59 @@ public class U2FDemoActivity extends AppCompatActivity
         /* assume this operation can only happen within short time after
            updateAndDisplayRegisteredKeys, which has already checked permission
          */
-        new RemoveSecurityKeyAsyncTask().execute(whichToken);
+        Task<String> removeSecurityKeyTask = asyncRemoveSecurityKey(whichToken);
+        removeSecurityKeyTask.addOnCompleteListener(new OnCompleteListener<String>() {
+            @Override
+            public void onComplete(@NonNull Task<String> task) {
+                updateAndDisplayRegisteredKeys();
+            }
+        });
     }
 
-    class GetRegisterRequestAsyncTask extends AsyncTask<Boolean, Void, RegisterRequestParams> {
-        @Override
-        protected RegisterRequestParams doInBackground(Boolean... params) {
-            gaeService = GAEService.getInstance(U2FDemoActivity.this);
-            return gaeService.getRegistrationRequest(params[0]);
-        }
-
-        @Override
-        protected void onPostExecute(RegisterRequestParams registerRequest) {
-            if (registerRequest == null) {
-                Log.d(TAG, "registerRequest is null");
-                return;
+    private Task<RegisterRequestParams> asyncGetRegisterRequest(final Boolean allowReregistration) {
+        return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<RegisterRequestParams>() {
+            @Override
+            public RegisterRequestParams call() throws Exception {
+                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                return gaeService.getRegistrationRequest(allowReregistration);
             }
-            sendRegisterRequestToClient(registerRequest);
-        }
+        });
     }
 
-    class UpdateRegisterResponseToServerAsyncTask
-            extends AsyncTask<RegisterResponseData, Void, String> {
-
-        @Override
-        protected String doInBackground(RegisterResponseData... params) {
-            gaeService = GAEService.getInstance(U2FDemoActivity.this);
-            return gaeService.getRegisterResponseFromServer(params[0]);
-        }
-
-        @Override
-        protected void onPostExecute(String securityKeyToken) {
-            if (securityKeyToken == null) {
-                Toast.makeText(
-                        U2FDemoActivity.this,
-                        "security key registration failed",
-                        Toast.LENGTH_SHORT)
-                        .show();
-                return;
+    private Task<String> asyncUpdateRegisterResponseToServer(
+        final RegisterResponseData registerResponseData) {
+        return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<String>() {
+            @Override
+            public String call() throws Exception {
+                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                return gaeService.getRegisterResponseFromServer(registerResponseData);
             }
-            updateAndDisplayRegisteredKeys();
-            Log.i(TAG, "UpdateRegisterResponseToServerAsyncTask securityKeyToken: " + securityKeyToken);
-        }
+        });
     }
 
-    class GetSignRequestAsyncTask extends AsyncTask<Void, Void, SignRequestParams> {
-        @Override
-        protected SignRequestParams doInBackground(Void... params) {
-            gaeService = GAEService.getInstance(U2FDemoActivity.this);
-            return gaeService.getSignRequest();
-        }
-
-        @Override
-        protected void onPostExecute(SignRequestParams signRequest) {
-            if (signRequest == null) {
-                Log.i(TAG, "signRequest is null");
-                return;
+    private Task<SignRequestParams> asyncGetSignRequest() {
+        return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<SignRequestParams>() {
+            @Override
+            public SignRequestParams call() throws Exception {
+                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                return gaeService.getSignRequest();
             }
-            sendSignRequestToClient(signRequest);
-        }
+        });
     }
 
-    class UpdateSignResponseToServerAsyncTask extends AsyncTask<SignResponseData, Void, String> {
-        @Override
-        protected String doInBackground(SignResponseData... params) {
-            gaeService = GAEService.getInstance(U2FDemoActivity.this);
-            return gaeService.getSignResponseFromServer(params[0]);
-        }
-
-        @Override
-        protected void onPostExecute(String pubKey) {
-            if (pubKey == null) {
-                Toast.makeText(
-                        U2FDemoActivity.this,
-                        "this security key has not been registered!",
-                        Toast.LENGTH_SHORT).
-                        show();
-                return;
+    private Task<String> asyncUpdateSignResponseToServer(final SignResponseData signResponseData) {
+        return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<String>() {
+            @Override
+            public String call() throws Exception {
+                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                return gaeService.getSignResponseFromServer(signResponseData);
             }
-            Log.i(TAG, "authenticated key's pub_key is " + pubKey);
-            highlightAuthenticatedToken(pubKey);
-        }
+        });
     }
 
     private void highlightAuthenticatedToken(String pubKey) {
         int whichToken = -1;
-        Log.i(TAG, "UpdateSignResponseToServerAsyncTask authenticated public_key: " + pubKey);
+        Log.i(TAG, "Successfully authenticated public_key: " + pubKey);
         for (int position = 0; position < securityTokens.size(); position++) {
             Map<String, String> tokenMap = securityTokens.get(position);
             Log.i(TAG, "highlightAuthenticatedToken registered public_key: "
@@ -416,35 +465,25 @@ public class U2FDemoActivity extends AppCompatActivity
         }
     }
 
-    class RefreshSecurityKeysAsyncTask extends AsyncTask<Void, Void, List<Map<String, String>>> {
-        @Override
-        protected List<Map<String, String>> doInBackground(Void... params) {
-            gaeService = GAEService.getInstance(U2FDemoActivity.this);
-            return gaeService.getAllSecurityTokens();
-        }
-
-        @Override
-        protected void onPostExecute(List<Map<String, String>> tokens) {
-            securityTokens = tokens;
-            mAdapter.clearSecurityTokens();
-            mAdapter.addSecurityToken(securityTokens);
-            displayRegisteredKeys();
-        }
+    private Task<List<Map<String, String>>> asyncRefreshSecurityKey() {
+        return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<List<Map<String, String>>>() {
+            @Override
+            public List<Map<String, String>> call() {
+                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                return gaeService.getAllSecurityTokens();
+            }
+        });
     }
 
-    class RemoveSecurityKeyAsyncTask extends AsyncTask<Integer, Void, String> {
-        @Override
-        protected String doInBackground(Integer... params) {
-            gaeService = GAEService.getInstance(U2FDemoActivity.this);
-            int tokenPositionInList = params[0];
-            return gaeService.removeSecurityKey(securityTokens.get(tokenPositionInList)
+    private Task<String> asyncRemoveSecurityKey(final int tokenPositionInList) {
+        return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<String>() {
+            @Override
+            public String call() {
+                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                return gaeService.removeSecurityKey(securityTokens.get(tokenPositionInList)
                     .get(KEY_PUB_KEY));
-        }
-
-        @Override
-        protected void onPostExecute(String removeKeyResponse) {
-            updateAndDisplayRegisteredKeys();
-        }
+            }
+        });
     }
 
     private void signIn() {
