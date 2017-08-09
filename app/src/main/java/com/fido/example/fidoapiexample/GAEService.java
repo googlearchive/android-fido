@@ -23,6 +23,7 @@ import android.preference.PreferenceManager;
 import android.util.Base64;
 import android.util.Log;
 
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.fido.u2f.api.common.RegisterRequest;
 import com.google.android.gms.fido.u2f.api.common.RegisterRequestParams;
 import com.google.android.gms.fido.u2f.api.common.RegisteredKey;
@@ -64,18 +65,20 @@ public class GAEService {
 
     private U2fRequestHandler service = null;
     private Context mContext = null;
+    private GoogleSignInAccount mGoogleSignInAccount = null;
     private Map<String, String> sessionIds = null;
     private List<Map<String, String>> securityTokens = null;
 
-    public static GAEService getInstance(Context context) {
+    public static GAEService getInstance(Context context, GoogleSignInAccount googleSignInAccount) {
         if (gaeService == null) {
-            gaeService = new GAEService(context);
+            gaeService = new GAEService(context, googleSignInAccount);
         }
         return gaeService;
     }
 
-    private GAEService(Context context) {
+    private GAEService(Context context, GoogleSignInAccount googleSignInAccount) {
         mContext = context;
+        mGoogleSignInAccount = googleSignInAccount;
         sessionIds = new HashMap<>();
         initGAEService();
     }
@@ -319,14 +322,15 @@ public class GAEService {
     }
 
     private void initGAEService() {
-        if (service != null) return;
-        // TODO decide login status by token
-        if (getSelectedAccountName() == null || getSelectedAccountName().isEmpty()) {
+        if (service != null) {
+            return;
+        }
+        if (mGoogleSignInAccount == null) {
             return;
         }
         GoogleAccountCredential credential = GoogleAccountCredential.usingAudience(mContext,
                 "server:client_id:" + Constants.SERVER_CLIENT_ID);
-        credential.setSelectedAccountName(getSelectedAccountName());
+        credential.setSelectedAccountName(mGoogleSignInAccount.getEmail());
         Log.d(TAG, "credential account name" + credential.getSelectedAccountName());
         U2fRequestHandler.Builder builder = new U2fRequestHandler.Builder(
                 AndroidHttp.newCompatibleTransport(),
@@ -340,11 +344,6 @@ public class GAEService {
                     }
                 });
         service = builder.build();
-    }
-
-    private String getSelectedAccountName() {
-        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(mContext);
-        return settings.getString(Constants.PREF_ACCOUNT_NAME, null);
     }
 
     private static List<RegisterRequest> parseRegisterRequests(JSONArray registerRequestsJson)

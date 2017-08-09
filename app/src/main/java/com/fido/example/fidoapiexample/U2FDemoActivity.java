@@ -54,6 +54,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.OptionalPendingResult;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.fido.Fido;
@@ -82,7 +83,6 @@ public class U2FDemoActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener,
         GoogleApiClient.OnConnectionFailedListener, View.OnClickListener {
     private final static String TAG = "U2FDemoActivity";
-    private static final String KEY_RESULT_DATA = "resultData";
     private static final String KEY_PUB_KEY = "public_key";
 
     private static final int RC_SIGN_IN = 9001;
@@ -115,6 +115,7 @@ public class U2FDemoActivity extends AppCompatActivity
 
     private GoogleApiClient mGoogleApiClient;
     private GAEService gaeService = null;
+    private GoogleSignInAccount mGoogleSignInAccount;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -191,28 +192,70 @@ public class U2FDemoActivity extends AppCompatActivity
      * Show SignIn button to request user sign in or display all registered security tokens
      */
     private void updateUI() {
-        // temporarily depend on the availability of account name in shared preference
-        // TODO checking auth token status to decide login status
-        String signedInAccount = getAccountEmailFromPref();
-        if (signedInAccount == null || signedInAccount.isEmpty()) {
-            mSignInButton.setVisibility(View.VISIBLE);
-            mUserEmailTextView.setText("");
-            mDisplayNameTextView.setText("");
-            mU2fOperationMenuItem.setVisible(false);
-            mSignInMenuItem.setVisible(true);
-            mSignOutMenuItem.setVisible(false);
-            mSwipeRefreshLayout.setVisibility(View.GONE);
-            mProgressBar.setVisibility(View.GONE);
-        } else {
-            mSwipeRefreshLayout.setVisibility(View.VISIBLE);
-            mUserEmailTextView.setText(getAccountEmailFromPref());
-            mDisplayNameTextView.setText(getDisplayNameFromPref());
-            mU2fOperationMenuItem.setVisible(true);
-            mSignInMenuItem.setVisible(false);
-            mSignOutMenuItem.setVisible(true);
-            updateAndDisplayRegisteredKeys();
-            mSignInButton.setVisibility(View.GONE);
+        // We check a boolean value in SharedPreferences to determine whether the user has been
+        // signed in. This value is false by default. It would be set to true after signing in and
+        // would be reset to false after user clicks "Sign out".
+        // After the users clicks "Sign out", we couldn't use
+        // GoogleSignInApi#silentSignIn(GoogleApiClient), because it silently signs in the user
+        // again. Thus, we rely on this boolean value in SharedPreferences.
+        if (!getAccountSignInStatus()) {
+            displayAccountNotSignedIn();
+            return;
         }
+
+        OptionalPendingResult<GoogleSignInResult> pendingResult =
+            Auth.GoogleSignInApi.silentSignIn(mGoogleApiClient);
+        if (pendingResult.isDone()) {
+            // If the user's cached credentials are valid, the OptionalPendingResult will be "done"
+            // and the GoogleSignInResult will be available instantly.
+            if (pendingResult.get().isSuccess()) {
+                mGoogleSignInAccount = pendingResult.get().getSignInAccount();
+                displayAccountSignedIn(pendingResult.get().getSignInAccount().getEmail(),
+                    pendingResult.get().getSignInAccount().getDisplayName());
+            } else {
+                displayAccountNotSignedIn();
+            }
+        } else {
+            // If the user has not previously signed in on this device or the sign-in has expired,
+            // this asynchronous branch will attempt to sign in the user silently.  Cross-device
+            // single sign-on will occur in this branch.
+            displayAccountNotSignedIn();
+
+            pendingResult.setResultCallback(new ResultCallback<GoogleSignInResult>() {
+                @Override
+                public void onResult(@NonNull GoogleSignInResult result) {
+                    if (result.isSuccess()) {
+                        mGoogleSignInAccount = result.getSignInAccount();
+                        displayAccountSignedIn(result.getSignInAccount().getEmail(),
+                            result.getSignInAccount().getDisplayName());
+                    } else {
+                        displayAccountNotSignedIn();
+                    }
+                }
+            });
+        }
+    }
+
+    private void displayAccountSignedIn(String email, String displayName) {
+        mSwipeRefreshLayout.setVisibility(View.VISIBLE);
+        mUserEmailTextView.setText(email);
+        mDisplayNameTextView.setText(displayName);
+        mU2fOperationMenuItem.setVisible(true);
+        mSignInMenuItem.setVisible(false);
+        mSignOutMenuItem.setVisible(true);
+        updateAndDisplayRegisteredKeys();
+        mSignInButton.setVisibility(View.GONE);
+    }
+
+    private void displayAccountNotSignedIn() {
+        mSignInButton.setVisibility(View.VISIBLE);
+        mUserEmailTextView.setText("");
+        mDisplayNameTextView.setText("");
+        mU2fOperationMenuItem.setVisible(false);
+        mSignInMenuItem.setVisible(true);
+        mSignOutMenuItem.setVisible(false);
+        mSwipeRefreshLayout.setVisibility(View.GONE);
+        mProgressBar.setVisibility(View.GONE);
     }
 
     private void displayRegisteredKeys() {
@@ -407,7 +450,7 @@ public class U2FDemoActivity extends AppCompatActivity
         return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<RegisterRequestParams>() {
             @Override
             public RegisterRequestParams call() throws Exception {
-                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                gaeService = GAEService.getInstance(U2FDemoActivity.this, mGoogleSignInAccount);
                 return gaeService.getRegistrationRequest(allowReregistration);
             }
         });
@@ -418,7 +461,7 @@ public class U2FDemoActivity extends AppCompatActivity
         return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<String>() {
             @Override
             public String call() throws Exception {
-                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                gaeService = GAEService.getInstance(U2FDemoActivity.this, mGoogleSignInAccount);
                 return gaeService.getRegisterResponseFromServer(registerResponseData);
             }
         });
@@ -428,7 +471,7 @@ public class U2FDemoActivity extends AppCompatActivity
         return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<SignRequestParams>() {
             @Override
             public SignRequestParams call() throws Exception {
-                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                gaeService = GAEService.getInstance(U2FDemoActivity.this, mGoogleSignInAccount);
                 return gaeService.getSignRequest();
             }
         });
@@ -438,7 +481,7 @@ public class U2FDemoActivity extends AppCompatActivity
         return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<String>() {
             @Override
             public String call() throws Exception {
-                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                gaeService = GAEService.getInstance(U2FDemoActivity.this, mGoogleSignInAccount);
                 return gaeService.getSignResponseFromServer(signResponseData);
             }
         });
@@ -469,7 +512,7 @@ public class U2FDemoActivity extends AppCompatActivity
         return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<List<Map<String, String>>>() {
             @Override
             public List<Map<String, String>> call() {
-                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                gaeService = GAEService.getInstance(U2FDemoActivity.this, mGoogleSignInAccount);
                 return gaeService.getAllSecurityTokens();
             }
         });
@@ -479,7 +522,7 @@ public class U2FDemoActivity extends AppCompatActivity
         return Tasks.call(THREAD_POOL_EXECUTOR, new Callable<String>() {
             @Override
             public String call() {
-                gaeService = GAEService.getInstance(U2FDemoActivity.this);
+                gaeService = GAEService.getInstance(U2FDemoActivity.this, mGoogleSignInAccount);
                 return gaeService.removeSecurityKey(securityTokens.get(tokenPositionInList)
                     .get(KEY_PUB_KEY));
             }
@@ -496,7 +539,8 @@ public class U2FDemoActivity extends AppCompatActivity
                 new ResultCallback<Status>() {
                     @Override
                     public void onResult(@NonNull Status status) {
-                        clearAccountInfoFromPref();
+                        Auth.GoogleSignInApi.signOut(mGoogleApiClient);
+                        clearAccountSignInStatus();
                         updateUI();
                         gaeService = null;
                     }
@@ -566,14 +610,14 @@ public class U2FDemoActivity extends AppCompatActivity
         Log.d(TAG, "handleSignInResult:" + result.isSuccess());
         if (result.isSuccess()) {
             GoogleSignInAccount acct = result.getSignInAccount();
-            saveAccountInfoToPref(acct.getEmail(), acct.getDisplayName());
+            saveAccountSignInStatus();
             Log.d(TAG, "account email" + acct.getEmail());
             Log.d(TAG, "account displayName" + acct.getDisplayName());
             Log.d(TAG, "account id" + acct.getId());
             Log.d(TAG, "account idToken" + acct.getIdToken());
             Log.d(TAG, "account scopes" + acct.getGrantedScopes());
         } else {
-            clearAccountInfoFromPref();
+            clearAccountSignInStatus();
         }
         updateUI();
     }
@@ -667,33 +711,25 @@ public class U2FDemoActivity extends AppCompatActivity
         }
     }
 
-    private String getAccountEmailFromPref() {
-        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
-        return settings.getString(Constants.PREF_ACCOUNT_NAME, "");
-    }
-
-    private String getDisplayNameFromPref() {
-        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
-        return settings.getString(Constants.PREF_DISPLAY_NAME, "");
-    }
-
-    private void saveAccountInfoToPref(String email, String displayName) {
+    private void saveAccountSignInStatus() {
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
         SharedPreferences.Editor editor = settings.edit();
-        editor.putString(Constants.PREF_ACCOUNT_NAME, email);
-        Log.d(TAG, "saveAccountInfoToPref email: " + email);
-        editor.putString(Constants.PREF_DISPLAY_NAME, displayName);
-        Log.d(TAG, "saveAccountInfoToPref displayName: " + displayName);
+        editor.putBoolean(Constants.PREF_SIGNED_IN_STATUS, true);
+        Log.d(TAG, "Save account sign in status: true");
         editor.apply();
     }
 
-    private void clearAccountInfoFromPref() {
+    private void clearAccountSignInStatus() {
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
         SharedPreferences.Editor editor = settings.edit();
-        editor.remove(Constants.PREF_ACCOUNT_NAME);
-        editor.remove(Constants.PREF_DISPLAY_NAME);
-        Log.d(TAG, "clearAccountInfoFromPref");
+        editor.putBoolean(Constants.PREF_SIGNED_IN_STATUS, false);
+        Log.d(TAG, "Clear account sign in status");
         editor.apply();
+    }
+
+    private boolean getAccountSignInStatus() {
+        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
+        return settings.getBoolean(Constants.PREF_SIGNED_IN_STATUS, false);
     }
 
     @Override
