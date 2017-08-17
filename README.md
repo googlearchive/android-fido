@@ -44,7 +44,7 @@ result.addOnSuccessListener(
      new OnSuccessListener<U2fPendingIntent>() {
        @Override
        public void onSuccess(U2fPendingIntent u2fPendingIntent) {
-         if (U2fPendingIntent.hasPendingIntent()) {
+         if (u2fPendingIntent.hasPendingIntent()) {
            // Start a U2F registration request.
            u2fPendingIntent.launchPendingIntent(this, REGISTER_REQUEST_CODE);
            // For a U2F sign request.
