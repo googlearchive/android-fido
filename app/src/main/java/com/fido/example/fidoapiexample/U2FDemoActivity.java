@@ -552,9 +552,9 @@ public class U2FDemoActivity extends AppCompatActivity
         super.onActivityResult(requestCode, resultCode, data);
 
         if (RC_SIGN_IN == requestCode) {
-            GoogleSignInResult siginInResult =
+            GoogleSignInResult signInResult =
                     Auth.GoogleSignInApi.getSignInResultFromIntent(data);
-            handleSignInResult(siginInResult);
+            handleSignInResult(signInResult);
             return;
         }
 
