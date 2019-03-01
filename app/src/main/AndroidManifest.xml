@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.fido.example.fidoapiexample">
+    package="com.fido.example.fido2apiexample">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.USE_CREDENTIALS" />
@@ -14,7 +14,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
-            android:name=".U2FDemoActivity"
+            android:name="com.fido.example.fido2apiexample.Fido2DemoActivity"
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar">
 

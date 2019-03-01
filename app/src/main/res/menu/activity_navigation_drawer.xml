@@ -9,18 +9,13 @@
         android:title="@string/sign_out" />
 
     <item
-        android:id="@+id/nav_u2fOperations"
+        android:id="@+id/nav_fido2Operations"
         android:title="@string/u2f_operations">
         <menu>
             <item
                 android:id="@+id/nav_register"
                 android:icon="@android:drawable/ic_menu_add"
                 android:title="@string/register_token" />
-            <item
-                android:id="@+id/nav_allowReregistration"
-                android:checkable="true"
-                android:checked="false"
-                android:title="@string/allow_reregistration" />
 
             <item
                 android:id="@+id/nav_auth"
@@ -32,7 +27,7 @@
     <item android:title="@string/open_source">
         <menu>
             <item
-                android:id="@+id/nav_gitbuh"
+                android:id="@+id/nav_github"
                 android:icon="@drawable/github_octocat"
                 android:title="@string/github" />
         </menu>

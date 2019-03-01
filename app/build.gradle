@@ -1,27 +1,31 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 26
-    buildToolsVersion "25.0.3"
+    compileSdkVersion 28
 
     defaultConfig {
-        applicationId "com.fido.example.fidoapiexample"
+        applicationId 'com.fido.example.fido2apiexample'
         minSdkVersion 15
-        targetSdkVersion 25
+        targetSdkVersion 28
         versionCode 1
-        versionName "1.0"
+        versionName '1.0'
         multiDexEnabled true
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner 'android.support.test.runner.AndroidJUnitRunner'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 
     signingConfigs {
         // Use the provided 'fido-example.keystore' for signing so that the example
         // server accepts the package signature
         release {
-            storeFile file('fido-example.keystore')
-            storePassword 'fidou2f'
+            storeFile file('fido-example.jks')
+            storePassword 'android-fido'
             keyAlias 'fidoexamplekey'
-            keyPassword 'fidou2f'
+            keyPassword 'android-fido'
         }
     }
 
@@ -45,25 +49,25 @@ configurations {
 
 dependencies {
     // JAR dependencies
-    compile files('libs/u2fRequestHandler-v1-1.22.0-SNAPSHOT.jar')
+    implementation files('libs/webauthndemo-sdk.jar')
 
     // Android Support
-    compile 'com.android.support:appcompat-v7:26.0.0'
-    compile 'com.android.support:cardview-v7:26.0.0'
-    compile 'com.android.support:customtabs:26.0.0'
-    compile 'com.android.support:design:26.0.0'
-    compile 'com.android.support:recyclerview-v7:26.0.0'
-    compile 'com.android.support:multidex:1.0.1'
+    implementation 'com.android.support:appcompat-v7:28.0.0'
+    implementation 'com.android.support:cardview-v7:28.0.0'
+    implementation 'com.android.support:customtabs:28.0.0'
+    implementation 'com.android.support:design:28.0.0'
+    implementation 'com.android.support:recyclerview-v7:28.0.0'
+    implementation 'com.android.support:multidex:1.0.3'
 
     // Play services
-    compile 'com.google.android.gms:play-services-auth:11.2.0'
-    compile 'com.google.android.gms:play-services-fido:11.2.0'
-    compile 'com.google.android.gms:play-services-ads:11.2.0'
+    implementation 'com.google.android.gms:play-services-auth:16.0.1'
+    implementation 'com.google.android.gms:play-services-fido:17.0.0'
+//    implementation 'com.google.android.gms:play-services-ads:17.1.3'
 
     // Other
-    compile 'com.google.http-client:google-http-client:1.22.0'
-    compile 'com.google.api-client:google-api-client:1.22.0'
-    compile 'com.google.http-client:google-http-client-android:1.22.0'
-    compile 'com.google.api-client:google-api-client-android:1.22.0'
-    compile 'net.sf.ingenias:common-codec:1.3'
+    implementation 'com.google.http-client:google-http-client:1.25.0'
+    implementation 'com.google.api-client:google-api-client:1.25.0'
+    implementation 'com.google.http-client:google-http-client-android:1.22.0'
+    implementation 'com.google.api-client:google-api-client-android:1.22.0'
+    implementation 'net.sf.ingenias:common-codec:1.3'
 }
