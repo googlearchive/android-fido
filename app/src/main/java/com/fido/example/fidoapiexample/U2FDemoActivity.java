@@ -342,6 +342,15 @@ public class U2FDemoActivity extends AppCompatActivity
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.GET_ACCOUNTS)
                 == PackageManager.PERMISSION_GRANTED) {
             Log.i(TAG, "getSignRequest permission is granted");
+            if (securityTokens.isEmpty()) {
+                Toast.makeText(
+                        U2FDemoActivity.this,
+                        "No token present",
+                        Toast.LENGTH_SHORT)
+                        .show();
+                Log.w(TAG, "No token present. Aborting Sign Request generation.");
+                return;
+            }
             Task<SignRequestParams> getSignRequestTask = asyncGetSignRequest();
             getSignRequestTask.addOnCompleteListener(new OnCompleteListener<SignRequestParams>() {
                 @Override
