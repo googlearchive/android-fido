@@ -1,54 +1,61 @@
-Android FIDO U2F API Sample
+Android FIDO2 API Sample
 ===========================
 
-A basic app showing how to register and authenticate FIDO U2F
-Security Keys using the FIDO U2F API.
+A sample app showing how to register and authenticate with Public Key
+Credentials using the FIDO2 API.
 
-FIDO U2F API is used for devices running Android L (API level 21)
-or newer.
+FIDO2 API is used for devices running Android N (API level 24) or newer.
 
 Introduction
 ------------
-The Fast Identity Online Universal 2nd Factor (FIDO U2F) API is now available.
-It provides U2F physical security key support to apps, in accordance with the standards defined by
-the FIDO Alliance.
+[The Android FIDO2
+API](https://developers.google.com/identity/fido/android/native-apps) provides a
+[FIDO Alliance](https://fidoalliance.org/) certified implementation of a
+[WebAuthn Client](https://www.w3.org/TR/webauthn/#webauthn-client) for Android.
+The API supports the use of roaming authenticators such as BLE, NFC, and USB
+security keys as well as platform authenticators, which allow users to
+authenticate using their fingerprint or screenlock.
 
-This API should be accessed from U2fApiClient entry point. For example, here is how to get an
-instance of it:
-```java
-private U2fApiClient mU2fApiClient;
-…
-mU2fApiClient = Fido.getU2fApiClient(this /* calling activity */);
+It is relying party's responsibility to manage registered keys. In the sample
+app, the keys are managed by [WebAuthn demo
+server](https://webauthndemo.appspot.com/) ([source
+code](https://github.com/google/webauthndemo)), however, in production use
+cases, the relying party should implement their own storage.
 
-```
-
-U2fPendingIntent can be used to launch U2F request. Here are different ways for registration and
-sign respectively to get a U2fPendingIntent from the entry point.
-For a registration request:
-```java
-Task<U2fPendingIntent> result =
-     mU2fApiClient.getRegisterIntent(registerRequestParams);
+The FIDO2 API entry point is the
+[`Fido2ApiClient`](https://developers.google.com/android/reference/com/google/android/gms/fido/fido2/Fido2ApiClient).
 
 ```
-
-For a sign request:
-```java
-Task<U2fPendingIntent> result =
-     mU2fApiClient.getSignIntent(signRequestParams);
-
+/* Get an instance of the API client. */
+Fido2ApiClient fido2ApiClient = Fido.getFido2ApiClient(this /* calling activity */);
 ```
 
-launchPendingintent(Activity, int) can be used to launch the U2F request.
+The `Fido2ApiClient` provides methods to allow your app to register new
+credentials (registration) as well as authenticate using existing credentials
+(signing)
+```
+Task<Fido2PendingIntent> fido2PendingIntent =
+    fido2ApiClient.getRegisterIntent(
+        publicKeyCredentialsCreationOptions);
+
+Task<Fido2PendingIntent> fido2PendingIntent =
+    fido2ApiClient.getSignIntent(
+        publicKeyCredentialsRequestOptions);
+```
+
+Once the
+[`Fido2PendingIntent`](https://developers.google.com/android/reference/com/google/android/gms/fido/fido2/Fido2PendingIntent)
+is received, it can be launched using the callback:
 ```java
 result.addOnSuccessListener(
-     new OnSuccessListener<U2fPendingIntent>() {
+     new OnSuccessListener<Fido2PendingIntent>() {
        @Override
-       public void onSuccess(U2fPendingIntent u2fPendingIntent) {
-         if (u2fPendingIntent.hasPendingIntent()) {
-           // Start a U2F registration request.
-           u2fPendingIntent.launchPendingIntent(this, REGISTER_REQUEST_CODE);
-           // For a U2F sign request.
-           // u2fPendingIntent.launchPendingIntent(this, SIGN_REQUEST_CODE);
+       public void onSuccess(Fido2PendingIntent fido2PendingIntent) {
+         if (fido2PendingIntent.hasPendingIntent()) {
+           // Start a FIDO2 registration request.
+           fido2PendingIntent.launchPendingIntent(this, REQUEST_CODE_REGISTER);
+           // For a FIDO2 sign request.
+           // fido2PendingIntent.launchPendingIntent(this, REQUEST_CODE_SIGN);
          }
        }
      });
@@ -60,12 +67,10 @@ result.addOnSuccessListener(
            // fail
        }
      });
-
 ```
 
-
-Handling the result:
-```java
+The result is handled in `onActivityResult()`:
+```
 @Override
 protected void onActivityResult(int requestCode, int resultCode, Intent data) {
   if (resultCode != RESULT_OK) {
@@ -73,14 +78,16 @@ protected void onActivityResult(int requestCode, int resultCode, Intent data) {
   }
 
   switch(requestCode) {
-    case REGISTER_REQUEST_CODE:
-      RegisterResponseData registerResponse = (RegisterResponseData) data
-          .getParcelableExtra(Fido.KEY_RESPONSE_EXTRA);
+    case REQUEST_CODE_REGISTER:
+      AuthenticatorAttestationResponse response =
+        AuthenticatorAttestationResponse.deserializeFromBytes(
+          data.getByteArrayExtra(Fido.FIDO2_KEY_RESPONSE_EXTRA));
       // Do something useful
       break;
-    case SIGN_REQUEST_CODE:
-      SignResponseData signResponse = (SignResponseData) data
-          .getParcelableExtra(Fido.KEY_RESPONSE_EXTRA);
+    case REQUEST_CODE_SIGN:
+      AuthenticatorAssertionResponse response =
+        AuthenticatorAssertionResponse.deserializeFromBytes(
+          data.getByteArrayExtra(Fido.FIDO2_KEY_RESPONSE_EXTRA));
       // Do something useful
       break;
     default:
@@ -95,7 +102,6 @@ Pre-requisites
 
 - Android SDK 26
 - Android Build Tools v25.0.3
-- Android Support Repository
 
 
 Getting Started
@@ -109,8 +115,7 @@ work with the demo server.
 Support
 -------
 
-- Google+ Community: https://plus.google.com/communities/105153134372062985968
-- Stack Overflow: http://stackoverflow.com/questions/tagged/android
+- [FIDO-Dev mailing list](https://groups.google.com/a/fidoalliance.org/forum/#!forum/fido-dev)
 
 If you've found an error in this sample, please file an issue:
 https://github.com/googlesamples/android-fido
@@ -122,7 +127,7 @@ submitting a pull request through GitHub. Please see CONTRIBUTING.md for more de
 License
 -------
 
-Copyright 2017 Google Inc. All Rights Reserved.
+Copyright 2019 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
