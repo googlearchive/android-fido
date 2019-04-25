@@ -14,12 +14,13 @@
  *  limitations under the License.
  */
 
-package com.fido.example.fidoapiexample;
+package com.fido.example.fido2apiexample;
 
+/** Centralized constants for the test application. */
 public class Constants {
+    /** OAuth 2.0 client ID for WebAuthn demo server */
     public static final String SERVER_CLIENT_ID =
-            "533916084229-qmk7s8pcv7u4uhj2coctv9h75rbp66d3.apps.googleusercontent.com";
+            "762961289381-hbbpkaqgi1kelev5mquj4dg4n8glr59p.apps.googleusercontent.com";
 
     public static final String PREF_SIGNED_IN_STATUS = "accountSignedIn";
-    public static final int DEFAULT_TIMEOUT_SECONDS = 30;
 }

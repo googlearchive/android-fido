@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package com.fido.example.fidoapiexample.utils;
+package com.fido.example.fido2apiexample.utils;
 
 import android.animation.Animator;
 import android.animation.AnimatorSet;
